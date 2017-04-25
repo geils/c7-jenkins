@@ -2,17 +2,57 @@
 FROM alpine:3.5
 MAINTAINER Github:dostroke <isgenez@gmail.com>
 
-ENV JDK_VER=8u121 \
-    JAVA_HOME=/usr/lib/jvm/java-8-oracle
+ENV JDK_VER=8u131 \
+    JAVA_HOME=/usr/lib/jvm/java-8-oracle \
+    JENKINS_HOME=/var/lib/jenkins \
+    JENKINS_VER=2.46.1 \
+    COPY_REFERENCE_FILE_LOG=/var/lib/jenkins/copy_reference_file.log \
+    JENKINS_SLAVE_AGENT_PORT=50000
+
+ARG UID=1000
+ARG GID=1000
+ARG USERNAME=jenkins
+ARG GROUPNAME=jenkins
+ARG JENKINS_UC=https://updates.jenkins.io
+
+RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates && \
+    apk add --no-cache openssh-client git curl unzip bash coreutils && \
+    addgroup -g ${GID} ${GROUPNAME} && \
+    adduser -h ${JENKINS_HOME} -u ${UID} -G ${GROUPNAME} -G root -s /bin/bash -D ${USERNAME} && \
+    mkdir -p /usr/share/jenkins/ref/init.groovy.d
+COPY init.groovy /usr/share/jenkins/ref/init.groovy.d/tcp-slave-agent-port.groovy
+
+#############################
+### INSTALL GLIBC 2.25-r0 ###
+#############################
+RUN wget https://raw.githubusercontent.com/andyshinn/alpine-pkg-glibc/master/sgerrand.rsa.pub \
+    -O /etc/apk/keys/sgerrand.rsa.pub && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-2.25-r0.apk \
+         https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-bin-2.25-r0.apk \
+         https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-i18n-2.25-r0.apk && \
+    apk add --no-cache glibc-2.25-r0 glibc-bin-2.25-r0 glibc-i18n-2.25-r0 && \
+    rm /etc/apk/keys/sgerrand.rsa.pub && \
+    /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    apk del glibc-i18n && \
+    rm /root/.wget-hsts && \
+    rm glibc-2.25-r0.apk glibc-bin-2.25-r0.apk glibc-i18n-2.25-r0.apk
+ 
+########################
+### TIMEZONE SETTING ###
+########################
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo "Asia/Seoul" > /etc/timezone && \
+    date && apk del tzdata
 
 ##########################
-### DOWNLOAD JDK 8u121 ###
+### DOWNLOAD JDK 8u131 ###
 ##########################
-RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates unzip && \
-    wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
-        "http://download.oracle.com/otn-pub/java/jdk/8u121-b13/e9e7ea248e2c4826b92b3f075a80e441/jdk-8u121-linux-x64.tar.gz" -O /tmp/jdk-${JDK_VER}-linux-x64.tar.gz && \
-    tar -xvf /tmp/jdk-8u121-linux-x64.tar.gz -C /tmp && \
-    mv /tmp/jdk1.8.0_121 ${JAVA_HOME} && \
+RUN wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
+    "http://download.oracle.com/otn-pub/java/jdk/8u131-b11/d54c1d3a095b4ff2b6607d096fa80163/jdk-8u131-linux-x64.tar.gz" -O /tmp/jdk-${JDK_VER}-linux-x64.tar.gz && \
+    tar -xvf /tmp/jdk-${JDK_VER}-linux-x64.tar.gz -C /tmp/ && \
+    mkdir -p /usr/lib/jvm && mv /tmp/jdk1.8.0_131 ${JAVA_HOME} && \
     rm -rf "${JAVA_HOME}/"src.zip && \
     rm -rf "${JAVA_HOME}/lib/missioncontrol" \
            "${JAVA_HOME}/lib/visualvm" \
@@ -48,9 +88,24 @@ RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates unzip &
            "${JAVA_HOME}/jre/lib/jfr" \
            "${JAVA_HOME}/jre/lib/oblique-fonts" && \
     wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
-        "http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip" && \
-    unzip -jo -d "${JAVA_HOME}/jre/lib/security" "jce_policy-8.zip" && \
+        "http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip" -O /tmp/jce_policy-8.zip && \
+    unzip -jo -d "${JAVA_HOME}/jre/lib/security" "/tmp/jce_policy-8.zip" && \
     apk del build-dependencies && \
-    rm /tmp/*
+    rm /tmp/* && chown -R ${USERNAME}:${GROUPNAME} /usr/lib/jvm
+    
 
+ENV PATH=$PATH:${JAVA_HOME}/bin \
+    LANG=C.UTF-8
 
+##############################
+### INSTALL JENKINS 2.46.1 ###
+##############################
+COPY jenkins.sh install-plugins.sh plugins.txt plugin_loop.sh jenkins-support /usr/local/bin/
+RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/2.46.1/jenkins-war-2.46.1.war -o /usr/share/jenkins/jenkins.war && \
+    chown -R ${USERNAME}:${GROUPNAME} ${JENKINS_HOME} /usr/share/jenkins /usr/local/bin/install-plugins.sh /usr/local/bin/jenkins-support /usr/local/bin/jenkins.sh /usr/local/bin/plugin_loop.sh
+
+EXPOSE 8080 50000
+VOLUME /var/lib/jenkins
+USER ${USERNAME} 
+RUN cd /usr/local/bin && ./plugin_loop.sh plugins.txt
+CMD ["/usr/local/bin/jenkins.sh"]
