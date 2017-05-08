@@ -5,7 +5,7 @@ MAINTAINER Github:dostroke <isgenez@gmail.com>
 ENV JDK_VER=8u131 \
     JAVA_HOME=/usr/lib/jvm/java-8-oracle \
     JENKINS_HOME=/var/lib/jenkins \
-    JENKINS_VER=2.46.1 \
+    JENKINS_VER=2.46.2 \
     COPY_REFERENCE_FILE_LOG=/var/lib/jenkins/copy_reference_file.log \
     JENKINS_SLAVE_AGENT_PORT=50000
 
@@ -30,7 +30,7 @@ RUN wget https://raw.githubusercontent.com/andyshinn/alpine-pkg-glibc/master/sge
     wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-2.25-r0.apk \
          https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-bin-2.25-r0.apk \
          https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-i18n-2.25-r0.apk && \
-    apk add --no-cache glibc-2.25-r0 glibc-bin-2.25-r0 glibc-i18n-2.25-r0 && \
+    apk add --no-cache glibc-2.25-r0.apk glibc-bin-2.25-r0.apk glibc-i18n-2.25-r0.apk && \
     rm /etc/apk/keys/sgerrand.rsa.pub && \
     /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true && \
     echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
@@ -98,10 +98,10 @@ ENV PATH=$PATH:${JAVA_HOME}/bin \
     LANG=C.UTF-8
 
 ##############################
-### INSTALL JENKINS 2.46.1 ###
+### INSTALL JENKINS 2.46.2 ###
 ##############################
 COPY jenkins.sh install-plugins.sh plugins.txt plugin_loop.sh jenkins-support /usr/local/bin/
-RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/2.46.1/jenkins-war-2.46.1.war -o /usr/share/jenkins/jenkins.war && \
+RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/2.46.2/jenkins-war-2.46.2.war -o /usr/share/jenkins/jenkins.war && \
     chown -R ${USERNAME}:${GROUPNAME} ${JENKINS_HOME} /usr/share/jenkins /usr/local/bin/install-plugins.sh /usr/local/bin/jenkins-support /usr/local/bin/jenkins.sh /usr/local/bin/plugin_loop.sh
 
 EXPOSE 8080 50000
