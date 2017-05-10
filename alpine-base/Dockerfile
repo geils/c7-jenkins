@@ -107,5 +107,5 @@ RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-wa
 EXPOSE 8080 50000
 VOLUME /var/lib/jenkins
 USER ${USERNAME} 
-RUN cd /usr/local/bin && ./plugin_loop.sh plugins.txt
+#RUN cd /usr/local/bin && ./plugin_loop.sh plugins.txt
 CMD ["/usr/local/bin/jenkins.sh"]
