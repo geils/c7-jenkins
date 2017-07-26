@@ -5,7 +5,7 @@ if [ -f /var/lib/jenkins/DOWNLOAD_HOME ]; then
 else
     echo "HOMEFILE IS NOT EXIST. START DOWNLOAD JENKINS HOME"
     mkdir -p /tmp/jenkins_home
-    git clone --progress https://github.com/dostroke/jenkins_home.git /tmp/jenkins_home
+    git clone --progress http://code.sktechx.com/scm/palab/jenkins_home.git /tmp/jenkins_home
     cp -R /tmp/jenkins_home/* /var/lib/jenkins/
     echo -e "DOWNLOADED at $(date +%Y-%m-%d)" > /var/lib/jenkins/DOWNLOAD_HOME
 fi

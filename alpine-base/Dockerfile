@@ -1,11 +1,11 @@
 ### ALPINE LINUX BASED JENKINS INCLUDE ORACLE JDK8
-FROM alpine:3.5
-MAINTAINER Github:dostroke <isgenez@gmail.com>
+FROM alpine:3.6
+MAINTAINER Github:geils <isgenez@gmail.com>
 
 ENV JDK_VER=8u131 \
     JAVA_HOME=/usr/lib/jvm/java-8-oracle \
     JENKINS_HOME=/var/lib/jenkins \
-    JENKINS_VER=2.46.2 \
+    JENKINS_VER=2.60.2 \
     COPY_REFERENCE_FILE_LOG=/var/lib/jenkins/copy_reference_file.log \
     JENKINS_SLAVE_AGENT_PORT=50000
 
@@ -15,27 +15,26 @@ ARG USERNAME=jenkins
 ARG GROUPNAME=jenkins
 ARG JENKINS_UC=https://updates.jenkins.io
 
-RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates && \
-    apk add --no-cache openssh-client git curl unzip bash coreutils openssl && \
+RUN apk update && \
+    apk add --no-cache wget ca-certificates openssh-client git curl unzip bash coreutils openssl libstdc++ zip && \
     addgroup -g ${GID} ${GROUPNAME} && \
     adduser -h ${JENKINS_HOME} -u ${UID} -G ${GROUPNAME} -G root -s /bin/bash -D ${USERNAME} && \
     mkdir -p /usr/share/jenkins/ref/init.groovy.d
 COPY init.groovy /usr/share/jenkins/ref/init.groovy.d/tcp-slave-agent-port.groovy
 
-RUN set -ex; \
-        apkArch="$(apk --print-arch)"; \
-        case "$apkArch" in \
-                x86_64) dockerArch=x86_64 ;; \
-                armhf) dockerArch=armel ;; \
-                *) echo >&2 "error: unknown Docker static binary arch $apkArch"; exit 1 ;; \
-        esac; \
-        curl -fSL "https://get.docker.com/builds/Linux/${dockerArch}/docker-17.03.1-ce.tgz" -o docker.tgz; \
-# /bin/sh doesn't support ${!...} :(
-        tar -xzvf docker.tgz; \
-        mv docker/* /usr/local/bin/; \
-        rmdir docker; \
-        rm docker.tgz; \
-        docker -v 
+#RUN set -ex; \
+#        apkArch="$(apk --print-arch)"; \
+#        case "$apkArch" in \
+#                x86_64) dockerArch=x86_64 ;; \
+#                armhf) dockerArch=armel ;; \
+#                *) echo >&2 "error: unknown Docker static binary arch $apkArch"; exit 1 ;; \
+#        esac; \
+#        curl -fSL "https://get.docker.com/builds/Linux/${dockerArch}/docker-17.03.1-ce.tgz" -o docker.tgz; \
+#        tar -xzvf docker.tgz; \
+#        mv docker/* /usr/local/bin/; \
+#        rmdir docker; \
+#        rm docker.tgz; \
+#        docker -v 
 
 #############################
 ### INSTALL GLIBC 2.25-r0 ###
@@ -47,7 +46,7 @@ RUN wget --progress=bar:force https://raw.githubusercontent.com/andyshinn/alpine
          https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-i18n-2.25-r0.apk && \
     apk add --no-cache glibc-2.25-r0.apk glibc-bin-2.25-r0.apk glibc-i18n-2.25-r0.apk && \
     rm /etc/apk/keys/sgerrand.rsa.pub && \
-    /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true && \
+    /usr/glibc-compat/bin/localedef -i en_US -f UTF-8 C.UTF-8 && \
     echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
     apk del glibc-i18n && \
     rm /root/.wget-hsts && \
@@ -105,7 +104,6 @@ RUN wget --progress=bar:force --header "Cookie: oraclelicense=accept-securebacku
     wget --progress=bar:force --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
         "http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip" -O /tmp/jce_policy-8.zip && \
     unzip -jo -d "${JAVA_HOME}/jre/lib/security" "/tmp/jce_policy-8.zip" && \
-    apk del build-dependencies && \
     rm /tmp/* && chown -R ${USERNAME}:${GROUPNAME} /usr/lib/jvm
     
 
@@ -113,10 +111,10 @@ ENV PATH=$PATH:${JAVA_HOME}/bin \
     LANG=C.UTF-8
 
 ##############################
-### INSTALL JENKINS 2.46.2 ###
+### INSTALL JENKINS 2.60.2 ###
 ##############################
 COPY jenkins.sh install-plugins.sh plugins.txt plugin_loop.sh jenkins-support /usr/local/bin/
-RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/2.46.2/jenkins-war-2.46.2.war -o /usr/share/jenkins/jenkins.war && \
+RUN curl -fsSL https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/2.60.2/jenkins-war-2.60.2.war -o /usr/share/jenkins/jenkins.war && \
     chown -R ${USERNAME}:${GROUPNAME} ${JENKINS_HOME} /usr/share/jenkins /usr/local/bin/install-plugins.sh /usr/local/bin/jenkins-support /usr/local/bin/jenkins.sh /usr/local/bin/plugin_loop.sh
 
 EXPOSE 22 8080 50000
